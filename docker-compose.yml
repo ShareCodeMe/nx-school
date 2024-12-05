@@ -1,0 +1,72 @@
+networks:
+  backend:
+    driver: bridge
+  keycloak:
+    driver: bridge
+volumes:
+  postgres_data:
+    driver: local
+  keycloak-data:
+    driver: local
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"
+    depends_on:
+      - db
+      - keycloak
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_REALM: myrealm
+      KEYCLOAK_CLIENT_ID: myclient
+      KEYCLOAK_CLIENT_SECRET: mysecret
+    networks:
+        - backend
+    env_file:
+      - .env
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DATABASE: postgres
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_PORT: ${KC_DB_PORT}
+    ports:
+      - "9081:8080"
+    command: ["start-dev"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+    networks:
+      - keycloak

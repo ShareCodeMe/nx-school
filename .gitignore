@@ -4,10 +4,12 @@
 dist
 tmp
 /out-tsc
-
+/.env
 # dependencies
 node_modules
-
+postgres_data
+postgres_keycloak
+keycloak-data
 # IDEs and editors
 /.idea
 .project
